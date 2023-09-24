@@ -1,0 +1,31 @@
+version: "3.8"
+services:
+  redis:
+    image: redis
+    ports:
+      - 6379:6379
+
+  block-submission-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - ENV=dev
+      - REDIS_URI=redis://redis:6379
+      - RUST_LOG=block_submission_service=debug
+    depends_on:
+      - redis
+
+  simulator:
+    build:
+      context: .
+      dockerfile: Dockerfile.sim
+    command: ["/app/sim-messages"]
+    environment:
+      - ENV=dev
+      - REDIS_URI=redis://redis:6379
+      - RUST_LOG=block_submission_simulator=debug
+    depends_on:
+      - redis
+    volumes:
+      - ./example_block_submissions:/app/example_block_submissions
