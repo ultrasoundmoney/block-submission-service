@@ -143,7 +143,7 @@ async fn main() -> Result<()> {
 
     let inputs = STATE_ROOTS.iter().zip(input_paths);
 
-    for (state_root, input_path) in inputs {
+    for (_state_root, input_path) in inputs {
         let decompressed_path = &format!("{}.decompressed", input_path);
 
         // Check if decompressed file exists

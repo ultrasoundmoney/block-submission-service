@@ -1,7 +1,7 @@
 //! Fns to read variables from the environment more conveniently and help other functions figure
 //! out what environment they're running in.
 
-use std::env;
+use std::{env, fmt::Display};
 
 use lazy_static::lazy_static;
 use tracing::{debug, warn};
@@ -54,7 +54,7 @@ pub enum Env {
     Stag,
 }
 
-pub fn get_env() -> Env {
+fn get_env() -> Env {
     let env_str = get_env_var("ENV");
     match env_str {
         None => {
@@ -75,7 +75,7 @@ pub fn get_env() -> Env {
     }
 }
 
-pub fn get_env_bool(key: &str) -> bool {
+fn get_env_bool(key: &str) -> bool {
     get_env_var(key).map_or(false, |var| var.to_lowercase() == "true")
 }
 
@@ -85,7 +85,16 @@ pub enum Network {
     Goerli,
 }
 
-pub fn get_network() -> Network {
+impl Display for Network {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Network::Mainnet => write!(f, "mainnet"),
+            Network::Goerli => write!(f, "goerli"),
+        }
+    }
+}
+
+fn get_network() -> Network {
     let network_str = get_env_var("NETWORK");
     match network_str {
         None => {

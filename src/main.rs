@@ -1,42 +1,25 @@
 //! # Submission Service
 //!
-//! Keep a cache of recent block submissions, and make them available over an API. This allows the
-//! relay to keep track only of the best bid it's received.
+//! Reads the recently received block submissions from a Redis stream and makes them available
+//! under unique keys in that same Redis instance. This allows the relay to keep track only of the
+//! best bid it's received.
 //!
 //! ## Configuration
-//! See operational_constants.rs.
+//! See storage.rs.
 
-mod block_submission_consumer;
+mod consumer;
 mod health;
-mod operational_constants;
 mod server;
+mod storage;
 
-use std::{
-    num::NonZeroUsize,
-    sync::{Arc, Mutex},
-};
+use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use block_submission_service::{env::ENV_CONFIG, log, BlockSubmissionKey, JsonValue};
-use fred::{
-    prelude::{ClientLike, RedisClient},
-    types::RedisConfig,
-};
-use futures::try_join;
-use lazy_static::lazy_static;
-use lru::LruCache;
+use block_submission_service::{env::ENV_CONFIG, log};
+use fred::{pool::RedisPool, types::RedisConfig};
+use futures::{channel::mpsc::channel, try_join};
 use tokio::sync::Notify;
 use tracing::info;
-
-use crate::{
-    block_submission_consumer::run_cache_submissions_thread,
-    operational_constants::BLOCK_SUBMISSION_CACHE_SIZE,
-};
-
-lazy_static! {
-    static ref LRU_SIZE: NonZeroUsize = NonZeroUsize::new(BLOCK_SUBMISSION_CACHE_SIZE).unwrap();
-}
-type BlockSubmissionMap = LruCache<BlockSubmissionKey, JsonValue>;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -50,34 +33,39 @@ async fn main() -> Result<()> {
     // thread panics.
     let shutdown_notify = Arc::new(Notify::new());
 
-    let block_submissions = Arc::new(Mutex::new(LruCache::new(*LRU_SIZE)));
     // Set up the shared Redis pool.
     let config = RedisConfig::from_url(&ENV_CONFIG.redis_uri)?;
-    let redis_client = RedisClient::new(config, None, None);
-    redis_client.connect();
-    redis_client
+    // We use a pool of connections to be able to store submissions in parallel.
+    let redis_pool = RedisPool::new(config, None, None, 4)?;
+    redis_pool.connect();
+    redis_pool
         .wait_for_connect()
         .await
         .context("failed to connect to redis")?;
 
-    let redis_health = health::RedisHealth::new(redis_client.clone());
+    let redis_health = health::RedisHealth::new(redis_pool.clone());
     let redis_consumer_health = health::RedisConsumerHealth::new();
 
-    let cache_submissions_thread = run_cache_submissions_thread(
-        block_submissions.clone(),
-        redis_client,
+    let (submissions_tx, submissions_rx) = channel(64);
+
+    let cache_submissions_thread = consumer::run_consume_submissions_thread(
+        redis_pool.clone(),
         redis_consumer_health.clone(),
         shutdown_notify.clone(),
+        submissions_tx,
     );
 
-    let server_thread = server::run_server_thread(
-        block_submissions,
-        redis_health,
-        redis_consumer_health,
-        shutdown_notify,
-    );
+    let store_submissions_thread =
+        storage::run_store_submissions_thread(redis_pool, submissions_rx, shutdown_notify.clone());
 
-    try_join!(cache_submissions_thread, server_thread)?;
+    let server_thread =
+        server::run_server_thread(redis_health, redis_consumer_health, shutdown_notify);
+
+    try_join!(
+        cache_submissions_thread,
+        server_thread,
+        store_submissions_thread
+    )?;
 
     Ok(())
 }

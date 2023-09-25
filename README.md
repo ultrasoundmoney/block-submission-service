@@ -1,3 +1,3 @@
 # Block Submission Service
 
-Keeps a cache of most recently seen block submissions, and offers them over an API.
+Reads the recently received block submissions from a Redis stream and makes them available under unique keys in that same Redis instance.

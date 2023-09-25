@@ -1,13 +1,17 @@
-use std::sync::{Arc, Mutex};
+//! # Consumer
+//!
+//! Consumes block submissions received by the relay from a Redis stream and stores them in that
+//! same Redis by BlockSubmissionKey.
+use std::sync::Arc;
 
 use anyhow::Result;
-use block_submission_service::STREAM_NAME;
-use fred::prelude::{RedisClient, StreamsInterface};
-use futures::{select, FutureExt};
+use block_submission_service::{BlockSubmission, STREAM_NAME};
+use fred::{pool::RedisPool, prelude::StreamsInterface};
+use futures::{channel::mpsc::Sender, select, FutureExt, SinkExt};
 use tokio::{sync::Notify, task::JoinHandle};
 use tracing::{debug, error, info, trace};
 
-use crate::{health::RedisConsumerHealth, BlockSubmissionMap};
+use crate::health::RedisConsumerHealth;
 
 use self::decode::XReadBlockSubmissions;
 
@@ -22,9 +26,9 @@ const READ_SUBMISSIONS_BLOCK_MS: u64 = 1000;
 const SUBMISSIONS_BATCH_SIZE: u64 = 1000;
 
 async fn add_new_submissions_loop(
-    block_submissions_map: &Mutex<BlockSubmissionMap>,
-    redis_client: &RedisClient,
+    redis_pool: &RedisPool,
     redis_consumer_health: &RedisConsumerHealth,
+    mut submissions_tx: Sender<BlockSubmission>,
 ) -> Result<()> {
     let mut last_id_seen: Option<String> = None;
 
@@ -32,7 +36,7 @@ async fn add_new_submissions_loop(
         let block_submissions: XReadBlockSubmissions = {
             match last_id_seen.as_ref() {
                 Some(last_id_seen) => {
-                    redis_client
+                    redis_pool
                         .xread(
                             Some(SUBMISSIONS_BATCH_SIZE),
                             Some(READ_SUBMISSIONS_BLOCK_MS),
@@ -42,7 +46,7 @@ async fn add_new_submissions_loop(
                         .await
                 }
                 None => {
-                    redis_client
+                    redis_pool
                         .xread(
                             Some(SUBMISSIONS_BATCH_SIZE),
                             Some(READ_SUBMISSIONS_BLOCK_MS),
@@ -64,24 +68,27 @@ async fn add_new_submissions_loop(
                 last_id_seen = submissions.last().map(|(key, _value)| key.clone());
 
                 let submissions_len = submissions.len();
-                let mut block_submissions = block_submissions_map.lock().expect("lock poisoned");
+
                 for (_key, value) in submissions {
-                    block_submissions.put(value.block_submission_key(), value.payload);
+                    submissions_tx.send(value).await?;
                 }
 
                 redis_consumer_health.set_last_message_received_now();
 
-                debug!(count = submissions_len, "added new submissions to cache");
+                debug!(
+                    count = submissions_len,
+                    "added new submissions to bid submission archive"
+                );
             }
         }
     }
 }
 
-pub fn run_cache_submissions_thread(
-    block_submissions: Arc<Mutex<BlockSubmissionMap>>,
-    redis_client: RedisClient,
+pub fn run_consume_submissions_thread(
+    redis_pool: RedisPool,
     redis_consumer_health: RedisConsumerHealth,
     shutdown_notify: Arc<Notify>,
+    submissions_tx: Sender<BlockSubmission>,
 ) -> JoinHandle<()> {
     tokio::spawn({
         async move {
@@ -89,7 +96,7 @@ pub fn run_cache_submissions_thread(
                 _ = shutdown_notify.notified().fuse() => {
                     info!("received shutdown signal, shutting down cache submissions thread");
                 },
-                result = add_new_submissions_loop(&block_submissions, &redis_client, &redis_consumer_health).fuse() => {
+                result = add_new_submissions_loop(&redis_pool, &redis_consumer_health, submissions_tx).fuse() => {
                     match result {
                         Ok(()) => {
                             error!("add new submissions thread stopped unexpectedly");

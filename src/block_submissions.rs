@@ -95,6 +95,7 @@ impl FromRedis for BlockSubmission {
 
 impl From<BlockSubmission> for RedisValue {
     fn from(entry: BlockSubmission) -> Self {
+        #![allow(clippy::mutable_key_type)]
         let mut map: HashMap<RedisKey, RedisValue> = HashMap::new();
         map.insert("eligible_at".into(), RedisValue::Integer(entry.eligible_at));
         map.insert(

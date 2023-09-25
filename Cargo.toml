@@ -1,6 +1,6 @@
 [package]
 name = "block-submission-service"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 default-run = "block-submission-service"
 
@@ -18,12 +18,10 @@ axum = { version = "0.6.20", default-features = false, features = [
 	"http2",
 	"json",
 	"matched-path",
-	"query",
 	"tokio",
 ] }
 bytes = "1.5.0"
 lazy_static = { version = "1.4.0", default-features = false }
-lru = { version = "0.11.0", default-features = false }
 fred = { version = "6.3.1", default-features = false }
 futures = { version = "0.3.28", default-features = false }
 tokio = { version = "1.32.0", features = [
