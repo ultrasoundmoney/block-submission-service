@@ -4,7 +4,7 @@
 //! same Redis by BlockSubmissionKey.
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use block_submission_service::{BlockSubmission, STREAM_NAME};
 use fred::{pool::RedisPool, prelude::StreamsInterface};
 use futures::{channel::mpsc::Sender, select, FutureExt, SinkExt};
@@ -35,26 +35,29 @@ async fn add_new_submissions_loop(
     loop {
         let block_submissions: XReadBlockSubmissions = {
             match last_id_seen.as_ref() {
-                Some(last_id_seen) => {
-                    redis_pool
-                        .xread(
-                            Some(SUBMISSIONS_BATCH_SIZE),
-                            Some(READ_SUBMISSIONS_BLOCK_MS),
-                            STREAM_NAME,
-                            last_id_seen,
+                Some(last_id_seen) => redis_pool
+                    .xread(
+                        Some(SUBMISSIONS_BATCH_SIZE),
+                        Some(READ_SUBMISSIONS_BLOCK_MS),
+                        STREAM_NAME,
+                        last_id_seen,
+                    )
+                    .await
+                    .with_context(|| {
+                        format!(
+                            "failed to read submissions from redis using starting id: {}",
+                            last_id_seen
                         )
-                        .await
-                }
-                None => {
-                    redis_pool
-                        .xread(
-                            Some(SUBMISSIONS_BATCH_SIZE),
-                            Some(READ_SUBMISSIONS_BLOCK_MS),
-                            STREAM_NAME,
-                            "$",
-                        )
-                        .await
-                }
+                    }),
+                None => redis_pool
+                    .xread(
+                        Some(SUBMISSIONS_BATCH_SIZE),
+                        Some(READ_SUBMISSIONS_BLOCK_MS),
+                        STREAM_NAME,
+                        "$",
+                    )
+                    .await
+                    .context("failed to read submissions from redis using starting id: $"),
             }
         }?;
 
@@ -70,15 +73,19 @@ async fn add_new_submissions_loop(
                 let submissions_len = submissions.len();
 
                 for (_key, value) in submissions {
-                    submissions_tx.send(value).await?;
+                    submissions_tx
+                        .feed(value)
+                        .await
+                        .context("failed to feed a new submission to submissions channel")?;
                 }
+                submissions_tx
+                    .flush()
+                    .await
+                    .context("failed to flush the submissions channel")?;
 
                 redis_consumer_health.set_last_message_received_now();
 
-                debug!(
-                    count = submissions_len,
-                    "added new submissions to bid submission archive"
-                );
+                debug!(count = submissions_len, "read new submissions from redis",);
             }
         }
     }
@@ -99,10 +106,10 @@ pub fn run_consume_submissions_thread(
                 result = add_new_submissions_loop(&redis_pool, &redis_consumer_health, submissions_tx).fuse() => {
                     match result {
                         Ok(()) => {
-                            error!("add new submissions thread stopped unexpectedly");
+                            error!("add new submissions thread exited unexpectedly without error");
                         },
-                        Err(err) => {
-                            error!(?err, "add new submissions thread finished with an error, shutting down");
+                        Err(e) => {
+                            error!(?e, "add new submissions thread hit error, exited");
                             shutdown_notify.notify_waiters();
                         }
                 }

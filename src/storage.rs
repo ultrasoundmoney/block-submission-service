@@ -11,7 +11,7 @@ use futures::{channel::mpsc::Receiver, StreamExt, TryStreamExt};
 use tokio::{sync::Notify, task::JoinHandle};
 use tracing::{error, info};
 
-const ARCHIVING_MAX_CONCURRENCY: usize = 16;
+const STORE_MAX_CONCURRENCY: usize = 4;
 
 // How long are the block submissions kept around in Redis. Given bidding starts before a slot, and
 // ends about 2 or 3 seconds into a slot anything over 2 slots in range i.e. 24 seconds, should be
@@ -24,7 +24,7 @@ async fn store_submissions(
 ) -> Result<()> {
     submissions_rx
         .map(Ok)
-        .try_for_each_concurrent(ARCHIVING_MAX_CONCURRENCY, |block_submission| {
+        .try_for_each_concurrent(STORE_MAX_CONCURRENCY, |block_submission| {
             let redis_pool = redis_pool.clone();
             async move {
                 redis_pool
@@ -52,10 +52,10 @@ pub fn run_store_submissions_thread(
         async move {
             match store_submissions(redis_pool, submissions_rx).await {
                 Ok(()) => {
-                    info!("store submissions thread exiting");
+                    info!("store submissions channel closed, store submissions thread exited");
                 }
                 Err(e) => {
-                    error!("store submissions thread exiting with error: {:?}", e);
+                    error!(?e, "store submissions thread hit error, exited");
                     shutdown_notify.notify_waiters();
                 }
             }
