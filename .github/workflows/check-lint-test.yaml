@@ -25,7 +25,6 @@ jobs:
   test:
     name: Test Suite
     runs-on: ubuntu-latest
-    continue-on-error: true
 
     # Source: https://docs.github.com/en/actions/using-containerized-services/creating-postgresql-service-containers
     services:
