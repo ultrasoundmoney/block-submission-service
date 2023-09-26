@@ -30,7 +30,7 @@ async fn store_submissions(
                 redis_pool
                     .set::<RedisValue, String, RedisValue>(
                         block_submission.block_submission_key().to_string(),
-                        RedisValue::String(block_submission.payload.to_string().into()),
+                        RedisValue::String(block_submission.execution_payload().to_string().into()),
                         Some(Expiration::EX(BLOCK_SUBMISSION_EXPIRATION_SECS)),
                         None,
                         false,

@@ -138,6 +138,17 @@ impl BlockSubmission {
             .to_string()
     }
 
+    pub fn block_submission_key(&self) -> BlockSubmissionKey {
+        let slot = self.slot();
+        let proposer_pubkey = self.proposer_pubkey();
+        let block_hash = self.block_hash();
+        BlockSubmissionKey::new(slot, proposer_pubkey, block_hash)
+    }
+
+    pub fn execution_payload(&self) -> serde_json::Value {
+        self.payload["execution_payload"].clone()
+    }
+
     pub fn proposer_pubkey(&self) -> String {
         self.payload["message"]["proposer_pubkey"]
             .as_str()
@@ -155,13 +166,6 @@ impl BlockSubmission {
             .as_str()
             .unwrap()
             .to_string()
-    }
-
-    pub fn block_submission_key(&self) -> BlockSubmissionKey {
-        let slot = self.slot();
-        let proposer_pubkey = self.proposer_pubkey();
-        let block_hash = self.block_hash();
-        BlockSubmissionKey::new(slot, proposer_pubkey, block_hash)
     }
 }
 
