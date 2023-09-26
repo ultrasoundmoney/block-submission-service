@@ -107,7 +107,7 @@ mod tests {
         assert!(x_read_response.0.is_some());
         let messages = x_read_response.0.unwrap();
 
-        assert_eq!(messages.len(), 1); // Assuming only one key-value pair
+        assert_eq!(messages.len(), 1);
         let (ref key, ref _block_submission) = messages[0];
         assert_eq!(key, "key");
     }
