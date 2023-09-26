@@ -3,8 +3,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-use block_submission_service::env::{Env, ENV_CONFIG};
 use lazy_static::lazy_static;
+
+use crate::env::{Env, ENV_CONFIG};
 
 use super::HealthCheck;
 
@@ -12,6 +13,12 @@ use super::HealthCheck;
 pub struct RedisConsumerHealth {
     last_message_received: Arc<Mutex<Option<Instant>>>,
     started_on: Instant,
+}
+
+impl Default for RedisConsumerHealth {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl RedisConsumerHealth {

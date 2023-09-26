@@ -2,11 +2,13 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use axum::{routing::get, Router, Server};
-use block_submission_service::env::{self, Env, ENV_CONFIG};
 use tokio::{sync::Notify, task::JoinHandle};
 use tracing::{error, info};
 
-use crate::health::{self, RedisConsumerHealth, RedisHealth};
+use crate::{
+    env::{self, Env, ENV_CONFIG},
+    health::{self, RedisConsumerHealth, RedisHealth},
+};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -46,7 +48,7 @@ async fn serve(
                 shutdown_notify.notified().await;
             })
             .await
-            .context("running server")
+            .context("failed to run server")
     };
 
     match result {

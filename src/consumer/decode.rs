@@ -1,9 +1,10 @@
-use block_submission_service::BlockSubmission;
 use fred::{
     prelude::{RedisError, RedisErrorKind},
     types::{FromRedis, RedisValue},
 };
 use tracing::error;
+
+use crate::BlockSubmission;
 
 fn into_redis_parse_err(err: impl std::fmt::Display) -> RedisError {
     RedisError::new(RedisErrorKind::Parse, err.to_string())

@@ -5,13 +5,12 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use block_submission_service::{BlockSubmission, STREAM_NAME};
 use fred::{pool::RedisPool, prelude::StreamsInterface};
 use futures::{channel::mpsc::Sender, select, FutureExt, SinkExt};
 use tokio::{sync::Notify, task::JoinHandle};
 use tracing::{debug, error, info, trace};
 
-use crate::health::RedisConsumerHealth;
+use crate::{health::RedisConsumerHealth, BlockSubmission, STREAM_NAME};
 
 use self::decode::XReadBlockSubmissions;
 
@@ -99,6 +98,8 @@ pub fn run_consume_submissions_thread(
 ) -> JoinHandle<()> {
     tokio::spawn({
         async move {
+            // If another thread (e.g. server thread) would hit an error, we would have no way of
+            // knowing and keep running. We use a shutdown_notify channel to signal to shut down.
             select! {
                 _ = shutdown_notify.notified().fuse() => {
                     info!("received shutdown signal, shutting down cache submissions thread");
@@ -112,7 +113,7 @@ pub fn run_consume_submissions_thread(
                             error!(?e, "add new submissions thread hit error, exited");
                             shutdown_notify.notify_waiters();
                         }
-                }
+                    }
                 }
             }
         }

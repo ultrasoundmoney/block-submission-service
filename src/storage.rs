@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use block_submission_service::BlockSubmission;
 use fred::{
     pool::RedisPool,
     prelude::KeysInterface,
@@ -10,6 +9,8 @@ use fred::{
 use futures::{channel::mpsc::Receiver, StreamExt, TryStreamExt};
 use tokio::{sync::Notify, task::JoinHandle};
 use tracing::{error, info};
+
+use crate::BlockSubmission;
 
 const STORE_MAX_CONCURRENCY: usize = 4;
 

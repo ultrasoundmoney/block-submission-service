@@ -7,19 +7,16 @@
 //! ## Configuration
 //! See storage.rs.
 
-mod consumer;
-mod health;
-mod server;
-mod storage;
-
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use block_submission_service::{env::ENV_CONFIG, log};
+use block_submission_service::{consumer, env::ENV_CONFIG, health, log, server, storage};
 use fred::{pool::RedisPool, types::RedisConfig};
 use futures::{channel::mpsc::channel, try_join};
 use tokio::sync::Notify;
 use tracing::info;
+
+const SUBMISSIONS_BUFFER_SIZE: usize = 64;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -46,7 +43,7 @@ async fn main() -> Result<()> {
     let redis_health = health::RedisHealth::new(redis_pool.clone());
     let redis_consumer_health = health::RedisConsumerHealth::new();
 
-    let (submissions_tx, submissions_rx) = channel(64);
+    let (submissions_tx, submissions_rx) = channel(SUBMISSIONS_BUFFER_SIZE);
 
     let cache_submissions_thread = consumer::run_consume_submissions_thread(
         redis_pool.clone(),
