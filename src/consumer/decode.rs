@@ -27,11 +27,14 @@ impl FromRedis for XReadBlockSubmissions {
                 // is an array of messages.
                 let mut submissions_stream = first_stream.into_array().into_iter();
                 let _name = submissions_stream.next();
-                let key_value_pairs = submissions_stream.next().ok_or_else(|| {
-                    into_redis_parse_err(
-                        "expect second element in the submissions stream array to be a RedisValue::Array with pairs of message keys and values",
-                    )
-                })?.into_array();
+                let key_value_pairs = submissions_stream
+                    .next()
+                    .ok_or_else(|| {
+                        into_redis_parse_err(
+                            "expect second element in the submissions stream array to be a RedisValue::Array with pairs of message keys and values",
+                        )
+                    })?
+                    .into_array();
 
                 key_value_pairs
                     .into_iter()
@@ -72,8 +75,6 @@ impl FromRedis for XReadBlockSubmissions {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
-
     use super::*;
 
     fn mock_valid_redis_value() -> RedisValue {
@@ -81,7 +82,7 @@ mod tests {
             RedisValue::String("stream_name".into()),
             RedisValue::Array(vec![RedisValue::Array(vec![
                 RedisValue::String("key".into()),
-                BlockSubmission::new(0, json!({"some": "data"}), 0, 200).into(),
+                BlockSubmission::default().into(),
             ])]),
         ])])
     }

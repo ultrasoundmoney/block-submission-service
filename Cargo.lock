@@ -149,6 +149,7 @@ dependencies = [
  "anyhow",
  "axum",
  "bytes",
+ "bytes-utils",
  "flate2",
  "fred",
  "futures",
