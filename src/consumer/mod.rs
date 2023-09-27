@@ -72,6 +72,7 @@ async fn add_new_submissions_loop(
                 let submissions_len = submissions.len();
 
                 for (_key, value) in submissions {
+                    trace!(?value, "read new submission from redis");
                     submissions_tx
                         .feed(value)
                         .await
