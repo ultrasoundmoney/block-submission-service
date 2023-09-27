@@ -2,8 +2,8 @@ use std::{sync::Arc, time::Duration};
 
 use anyhow::{Context, Result};
 use block_submission_service::{
-    env::ENV_CONFIG, run_consume_submissions_thread, run_store_submissions_thread, BlockSubmission,
-    JsonValue, RedisConsumerHealth, STREAM_NAME,
+    env::ENV_CONFIG, log, run_consume_submissions_thread, run_store_submissions_thread,
+    BlockSubmission, JsonValue, RedisConsumerHealth, STREAM_NAME,
 };
 use fred::{
     pool::RedisPool,
@@ -15,6 +15,7 @@ use tokio::{sync::Notify, time::sleep};
 
 #[tokio::test]
 async fn store_block_submission() -> Result<()> {
+    log::init();
     let shutdown_notify = Arc::new(Notify::new());
     let config = RedisConfig::from_url(&ENV_CONFIG.redis_uri)?;
     let redis_pool = RedisPool::new(config, None, None, 4)?;
