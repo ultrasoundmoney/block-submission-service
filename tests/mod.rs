@@ -2,7 +2,8 @@ use std::{sync::Arc, time::Duration};
 
 use anyhow::{Context, Result};
 use block_submission_service::{
-    consumer, env::ENV_CONFIG, health, storage, BlockSubmission, JsonValue, STREAM_NAME,
+    env::ENV_CONFIG, run_consume_submissions_thread, run_store_submissions_thread, BlockSubmission,
+    JsonValue, RedisConsumerHealth, STREAM_NAME,
 };
 use fred::{
     pool::RedisPool,
@@ -22,22 +23,18 @@ async fn store_block_submission() -> Result<()> {
         .wait_for_connect()
         .await
         .context("failed to connect to redis")?;
-    let redis_consumer_health = health::RedisConsumerHealth::new();
+    let redis_consumer_health = RedisConsumerHealth::new();
 
     let (submissions_tx, submissions_rx) = channel(4);
 
-    consumer::run_consume_submissions_thread(
+    run_consume_submissions_thread(
         redis_pool.clone(),
         redis_consumer_health.clone(),
         shutdown_notify.clone(),
         submissions_tx.clone(),
     );
 
-    storage::run_store_submissions_thread(
-        redis_pool.clone(),
-        submissions_rx,
-        shutdown_notify.clone(),
-    );
+    run_store_submissions_thread(redis_pool.clone(), submissions_rx, shutdown_notify.clone());
 
     let block_submission = {
         let file = std::fs::File::open("tests/fixtures/0xffe314e3f12d726cf9f4a4babfcbfc836ef53d3144469f886423a833c853e3ef.json.gz.decompressed")?;

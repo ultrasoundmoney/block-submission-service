@@ -26,7 +26,6 @@ jobs:
     name: Test Suite
     runs-on: ubuntu-latest
 
-    # Source: https://docs.github.com/en/actions/using-containerized-services/creating-postgresql-service-containers
     services:
       redis:
         image: redis

@@ -10,7 +10,10 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use block_submission_service::{consumer, env::ENV_CONFIG, health, log, server, storage};
+use block_submission_service::{
+    env::ENV_CONFIG, log, run_consume_submissions_thread, run_server_thread,
+    run_store_submissions_thread, RedisConsumerHealth, RedisHealth,
+};
 use fred::{pool::RedisPool, types::RedisConfig};
 use futures::{channel::mpsc::channel, try_join};
 use tokio::sync::Notify;
@@ -40,12 +43,12 @@ async fn main() -> Result<()> {
         .await
         .context("failed to connect to redis")?;
 
-    let redis_health = health::RedisHealth::new(redis_pool.clone());
-    let redis_consumer_health = health::RedisConsumerHealth::new();
+    let redis_health = RedisHealth::new(redis_pool.clone());
+    let redis_consumer_health = RedisConsumerHealth::new();
 
     let (submissions_tx, submissions_rx) = channel(SUBMISSIONS_BUFFER_SIZE);
 
-    let cache_submissions_thread = consumer::run_consume_submissions_thread(
+    let cache_submissions_thread = run_consume_submissions_thread(
         redis_pool.clone(),
         redis_consumer_health.clone(),
         shutdown_notify.clone(),
@@ -53,10 +56,9 @@ async fn main() -> Result<()> {
     );
 
     let store_submissions_thread =
-        storage::run_store_submissions_thread(redis_pool, submissions_rx, shutdown_notify.clone());
+        run_store_submissions_thread(redis_pool, submissions_rx, shutdown_notify.clone());
 
-    let server_thread =
-        server::run_server_thread(redis_health, redis_consumer_health, shutdown_notify);
+    let server_thread = run_server_thread(redis_health, redis_consumer_health, shutdown_notify);
 
     try_join!(
         cache_submissions_thread,
