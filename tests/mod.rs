@@ -40,7 +40,7 @@ async fn store_block_submission() -> Result<()> {
     );
 
     let block_submission = {
-        let file = std::fs::File::open("tests/fixtures/0x003fc7725acd9365420171d5768dda1d0dd28dc50ea15126f4a4db81b2cf3dfb.json.gz.decompressed")?;
+        let file = std::fs::File::open("tests/fixtures/0xffe314e3f12d726cf9f4a4babfcbfc836ef53d3144469f886423a833c853e3ef.json.gz.decompressed")?;
         let submission: BlockSubmission = serde_json::from_reader(file)?;
         submission
     };
