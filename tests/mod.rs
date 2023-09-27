@@ -49,7 +49,7 @@ async fn store_block_submission() -> Result<()> {
     redis_pool.xadd(STREAM_NAME, true, None, "*", pairs).await?;
 
     // Give our threads a moment to process the new block submission.
-    sleep(Duration::from_millis(200)).await;
+    sleep(Duration::from_secs(1)).await;
 
     let stored_submission: RedisValue = redis_pool.get(block_submission_key).await?;
 
