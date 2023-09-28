@@ -4,6 +4,7 @@ mod consumer;
 pub mod env;
 mod health;
 pub mod log;
+pub mod performance;
 mod server;
 mod storage;
 

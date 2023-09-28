@@ -11,13 +11,16 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use block_submission_service::{
-    env::ENV_CONFIG, log, run_consume_submissions_thread, run_server_thread,
-    run_store_submissions_thread, RedisConsumerHealth, RedisHealth,
+    env::ENV_CONFIG,
+    log,
+    performance::{self, BlockCounter},
+    run_consume_submissions_thread, run_server_thread, run_store_submissions_thread,
+    RedisConsumerHealth, RedisHealth,
 };
 use fred::{pool::RedisPool, types::RedisConfig};
 use futures::{channel::mpsc::channel, try_join};
 use tokio::sync::Notify;
-use tracing::info;
+use tracing::{info, trace};
 
 const SUBMISSIONS_BUFFER_SIZE: usize = 64;
 
@@ -32,6 +35,29 @@ async fn main() -> Result<()> {
     // the server thread does not. We use this notify to shutdown the server thread when any other
     // thread panics.
     let shutdown_notify = Arc::new(Notify::new());
+
+    // Track our block archival count.
+    let block_counter = Arc::new(BlockCounter::new());
+    let log_block_counter_thread = {
+        if tracing::enabled!(tracing::Level::INFO) || ENV_CONFIG.log_perf {
+            let handle = tokio::spawn({
+                let block_counter = block_counter.clone();
+                async move {
+                    performance::report_storage_rate_periodically(&block_counter).await;
+                }
+            });
+            let shutdown_notify = shutdown_notify.clone();
+            tokio::spawn(async move {
+                shutdown_notify.notified().await;
+                trace!("shutting down block counter thread");
+                handle.abort();
+            })
+        } else {
+            // Return a future which immediately completes.
+            trace!("not starting block counter thread");
+            tokio::spawn(async {})
+        }
+    };
 
     // Set up the shared Redis pool.
     let config = RedisConfig::from_url(&ENV_CONFIG.redis_uri)?;
@@ -62,8 +88,9 @@ async fn main() -> Result<()> {
 
     try_join!(
         cache_submissions_thread,
+        log_block_counter_thread,
         server_thread,
-        store_submissions_thread
+        store_submissions_thread,
     )?;
 
     Ok(())
