@@ -97,6 +97,7 @@ pub fn run_consume_submissions_thread(
     shutdown_notify: Arc<Notify>,
     submissions_tx: Sender<BlockSubmission>,
 ) -> JoinHandle<()> {
+    info!("starting cache submissions thread");
     tokio::spawn({
         async move {
             // If another thread (e.g. server thread) would hit an error, we would have no way of

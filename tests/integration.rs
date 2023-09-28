@@ -2,8 +2,8 @@ use std::{sync::Arc, time::Duration};
 
 use anyhow::{Context, Result};
 use block_submission_service::{
-    env::ENV_CONFIG, log, run_consume_submissions_thread, run_store_submissions_thread,
-    BlockSubmission, JsonValue, RedisConsumerHealth, STREAM_NAME,
+    env::ENV_CONFIG, run_consume_submissions_thread, run_store_submissions_thread, BlockSubmission,
+    JsonValue, RedisConsumerHealth, STREAM_NAME,
 };
 use fred::{
     pool::RedisPool,
@@ -15,7 +15,6 @@ use tokio::{sync::Notify, time::sleep};
 
 #[tokio::test]
 async fn store_block_submission() -> Result<()> {
-    log::init();
     let shutdown_notify = Arc::new(Notify::new());
     let config = RedisConfig::from_url(&ENV_CONFIG.redis_uri)?;
     let redis_pool = RedisPool::new(config, None, None, 4)?;
@@ -47,10 +46,12 @@ async fn store_block_submission() -> Result<()> {
     let block_hash = block_submission.block_hash();
     let pairs: MultipleOrderedPairs = block_submission.try_into()?;
 
-    redis_pool.xadd(STREAM_NAME, true, None, "*", pairs).await?;
+    redis_pool
+        .xadd(STREAM_NAME, false, None, "*", pairs)
+        .await?;
 
     // Give our threads a moment to process the new block submission.
-    sleep(Duration::from_secs(1)).await;
+    sleep(Duration::from_millis(200)).await;
 
     let stored_submission: RedisValue = redis_pool.get(block_submission_key).await?;
 

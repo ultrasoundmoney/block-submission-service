@@ -49,6 +49,7 @@ pub fn run_store_submissions_thread(
     submissions_rx: Receiver<BlockSubmission>,
     shutdown_notify: Arc<Notify>,
 ) -> JoinHandle<()> {
+    info!("starting store submissions thread");
     tokio::spawn({
         async move {
             match store_submissions(redis_pool, submissions_rx).await {

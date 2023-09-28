@@ -52,7 +52,6 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: -- --nocapture
         env:
           REDIS_URI: redis://localhost:6379
           ENV: dev
