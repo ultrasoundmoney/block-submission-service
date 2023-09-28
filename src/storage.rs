@@ -10,7 +10,7 @@ use futures::{channel::mpsc::Receiver, StreamExt, TryStreamExt};
 use tokio::{sync::Notify, task::JoinHandle};
 use tracing::{error, info};
 
-use crate::BlockSubmission;
+use crate::{performance::BlockCounter, BlockSubmission};
 
 const STORE_MAX_CONCURRENCY: usize = 4;
 
@@ -20,6 +20,7 @@ const STORE_MAX_CONCURRENCY: usize = 4;
 const BLOCK_SUBMISSION_EXPIRATION_SECS: i64 = 48;
 
 async fn store_submissions(
+    block_counter: &BlockCounter,
     redis_pool: RedisPool,
     submissions_rx: Receiver<BlockSubmission>,
 ) -> Result<()> {
@@ -38,6 +39,8 @@ async fn store_submissions(
                     )
                     .await?;
 
+                block_counter.increment();
+
                 Ok(())
             }
         })
@@ -45,6 +48,7 @@ async fn store_submissions(
 }
 
 pub fn run_store_submissions_thread(
+    block_counter: Arc<BlockCounter>,
     redis_pool: RedisPool,
     submissions_rx: Receiver<BlockSubmission>,
     shutdown_notify: Arc<Notify>,
@@ -52,7 +56,7 @@ pub fn run_store_submissions_thread(
     info!("starting store submissions thread");
     tokio::spawn({
         async move {
-            match store_submissions(redis_pool, submissions_rx).await {
+            match store_submissions(&block_counter, redis_pool, submissions_rx).await {
                 Ok(()) => {
                     info!("store submissions channel closed, store submissions thread exited");
                 }

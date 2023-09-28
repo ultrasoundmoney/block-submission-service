@@ -81,8 +81,12 @@ async fn main() -> Result<()> {
         submissions_tx,
     );
 
-    let store_submissions_thread =
-        run_store_submissions_thread(redis_pool, submissions_rx, shutdown_notify.clone());
+    let store_submissions_thread = run_store_submissions_thread(
+        block_counter,
+        redis_pool,
+        submissions_rx,
+        shutdown_notify.clone(),
+    );
 
     let server_thread = run_server_thread(redis_health, redis_consumer_health, shutdown_notify);
 
