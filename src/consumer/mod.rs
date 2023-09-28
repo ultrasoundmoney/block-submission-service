@@ -73,6 +73,15 @@ async fn add_new_submissions_loop(
 
                 for (_key, value) in submissions {
                     trace!(?value, "read new submission from redis");
+
+                    if !value.safe_to_propose() {
+                        trace!(
+                            ?value,
+                            "skipping submission because it is not safe to store"
+                        );
+                        continue;
+                    }
+
                     submissions_tx
                         .feed(value)
                         .await

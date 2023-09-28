@@ -357,9 +357,10 @@ impl BlockSubmission {
             .to_string()
     }
 
-    // Not every archived block submission is accepted by the relay.
-    pub fn safe_to_store(&self) -> bool {
-        self.status_code == Some(200)
+    // Not every archived block submission is accepted by the relay. It signals to us which
+    // would've been eligible to be proposed.
+    pub fn safe_to_propose(&self) -> bool {
+        self.safe_to_propose.unwrap_or(false)
     }
 }
 
