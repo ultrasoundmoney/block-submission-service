@@ -63,7 +63,10 @@ async fn add_new_submissions_loop(
         match block_submissions.0 {
             None => {
                 // No new submissions, ask again, using block to avoid busywaiting.
-                trace!("no new submissions, continuing");
+                trace!(
+                    "no new submissions, asking again with {}s block",
+                    READ_SUBMISSIONS_BLOCK_MS / 1000
+                );
             }
             Some(submissions) => {
                 // Update the last id seen.

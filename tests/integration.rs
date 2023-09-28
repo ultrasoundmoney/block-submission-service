@@ -16,6 +16,9 @@ use tokio::{sync::Notify, time::sleep};
 #[tokio::test]
 async fn store_block_submission() -> Result<()> {
     let shutdown_notify = Arc::new(Notify::new());
+
+    let block_counter = Arc::new(block_submission_service::performance::BlockCounter::new());
+
     let config = RedisConfig::from_url(&ENV_CONFIG.redis_uri)?;
     let redis_pool = RedisPool::new(config, None, None, 4)?;
     redis_pool.connect();
@@ -34,7 +37,12 @@ async fn store_block_submission() -> Result<()> {
         submissions_tx.clone(),
     );
 
-    run_store_submissions_thread(redis_pool.clone(), submissions_rx, shutdown_notify.clone());
+    run_store_submissions_thread(
+        block_counter,
+        redis_pool.clone(),
+        submissions_rx,
+        shutdown_notify.clone(),
+    );
 
     let block_submission = {
         let file = std::fs::File::open("tests/fixtures/0xffe314e3f12d726cf9f4a4babfcbfc836ef53d3144469f886423a833c853e3ef.json.gz.decompressed")?;
