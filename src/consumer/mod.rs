@@ -104,8 +104,8 @@ async fn add_new_submissions_loop(
 }
 
 pub fn run_consume_submissions_thread(
-    redis_pool: RedisPool,
     redis_consumer_health: RedisConsumerHealth,
+    redis_pool: RedisPool,
     shutdown_notify: Arc<Notify>,
     submissions_tx: Sender<BlockSubmission>,
 ) -> JoinHandle<()> {

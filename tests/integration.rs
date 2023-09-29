@@ -31,8 +31,8 @@ async fn store_block_submission() -> Result<()> {
     let (submissions_tx, submissions_rx) = channel(4);
 
     run_consume_submissions_thread(
-        redis_pool.clone(),
         redis_consumer_health.clone(),
+        redis_pool.clone(),
         shutdown_notify.clone(),
         submissions_tx.clone(),
     );
@@ -40,8 +40,8 @@ async fn store_block_submission() -> Result<()> {
     run_store_submissions_thread(
         block_counter,
         redis_pool.clone(),
-        submissions_rx,
         shutdown_notify.clone(),
+        submissions_rx,
     );
 
     let block_submission = {

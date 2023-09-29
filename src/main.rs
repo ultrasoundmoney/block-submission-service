@@ -75,8 +75,8 @@ async fn main() -> Result<()> {
     let (submissions_tx, submissions_rx) = channel(SUBMISSIONS_BUFFER_SIZE);
 
     let cache_submissions_thread = run_consume_submissions_thread(
-        redis_pool.clone(),
         redis_consumer_health.clone(),
+        redis_pool.clone(),
         shutdown_notify.clone(),
         submissions_tx,
     );
@@ -84,8 +84,8 @@ async fn main() -> Result<()> {
     let store_submissions_thread = run_store_submissions_thread(
         block_counter,
         redis_pool,
-        submissions_rx,
         shutdown_notify.clone(),
+        submissions_rx,
     );
 
     let server_thread = run_server_thread(redis_health, redis_consumer_health, shutdown_notify);
