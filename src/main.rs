@@ -22,7 +22,7 @@ use futures::{channel::mpsc::channel, try_join};
 use tokio::sync::Notify;
 use tracing::{info, trace};
 
-const SUBMISSIONS_BUFFER_SIZE: usize = 64;
+const SUBMISSIONS_BUFFER_SIZE: usize = 128;
 
 #[tokio::main]
 async fn main() -> Result<()> {

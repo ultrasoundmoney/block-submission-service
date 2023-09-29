@@ -22,7 +22,7 @@ mod decode;
 const READ_SUBMISSIONS_BLOCK_MS: u64 = 1000;
 
 // Max number of new submissions to pull at a time.
-const SUBMISSIONS_BATCH_SIZE: u64 = 1000;
+const SUBMISSIONS_BATCH_SIZE: u64 = 128;
 
 async fn add_new_submissions_loop(
     redis_pool: &RedisPool,
