@@ -4,7 +4,7 @@ use std::{fmt::Display, str::FromStr};
 use crate::{env::ENV_CONFIG, Slot};
 
 const MEVBOOST_REDIS_PREFIX: &str = "boost-relay";
-const CAPELLA_PREFIX: &str = "cache-execpayload-capella";
+const CAPELLA_PREFIX: &str = "cache-execpayload-capella-json";
 
 #[derive(Debug, Eq, Hash, PartialEq)]
 pub struct BlockSubmissionKey {
